@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"io/ioutil"
 	"sync"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
 )
 
 var (
@@ -25,6 +27,12 @@ type information struct {
 	URL     string	//用户头像路径
 	Gender     string //性别
 	Age        int //年龄
+}
+
+type user struct{
+	Id int `gorm:"type:int(16);not null;primary_key;auto_increment"`
+	Name string `gorm:"type:varchar(64);not null;unique"`
+	Age int `gorm:"type:int(16);not null"`
 }
 
 func init() {
@@ -74,9 +82,26 @@ func main() {
 			}
 		})
 	}
+	db, err := gorm.Open("mysql","root:chenyanpeng@/testing?parseTime=True&loc=Local")
+	if err != nil {log.Fatal(err)}
+	if db.HasTable("users") {
+		db.DropTable("users")
+	}
+	db.Set("gorm:table_options","Engine=InnoDb Charset=utf8").CreateTable(&user{})
+	if db.NewRecord(&user{}) {
+		fmt.Println("create table users succeed")
+	} else {
+		return
+	}
+	var u user
 	wg.Add(len(infors))
 	for index, infor := range infors {
 		fmt.Println(infor)
+		u = user{Id:index + 1,Name:infor.Title,Age:infor.Age}
+		if ! db.NewRecord(&user{}) {
+			fmt.Println("insert table users failed")
+		}
+		db.Create(&u)
 		go func() {
 			defer wg.Done()
 			downLoad(index,infor)
